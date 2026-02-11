@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from config import init_swisseph, DEFAULT_HOUSE_SYSTEM
 from calculations.ephemeris import (
     datetime_to_jd, local_time_to_ut_hour, compute_all_planets,
     compute_houses, get_ayanamsa,
@@ -16,7 +17,17 @@ from calculations.panchanga import compute_panchanga
 from calculations.ashtakavarga import (
     compute_bhinnashtakavarga, compute_sarvashtakavarga, format_ashtakavarga,
 )
-from config import DEFAULT_HOUSE_SYSTEM
+
+
+def _ensure_swisseph_initialized():
+    """Ensure Swiss Ephemeris is initialized with Lahiri ayanamsa.
+
+    This must be called before any calculations in multiprocessing workers.
+    When uvicorn runs with multiple workers, each worker process needs to
+    initialize Swiss Ephemeris separately. The module-level init_swisseph()
+    call may not persist across process forks.
+    """
+    init_swisseph()
 
 
 def _parse_birth_input(date_str: str, time_str: str, tz_offset: float,
@@ -58,6 +69,9 @@ def compute_full_chart(name: str | None, date_str: str, time_str: str,
 
     Returns a dict matching the ChartResponse schema.
     """
+    # Ensure Swiss Ephemeris is initialized for this worker
+    _ensure_swisseph_initialized()
+
     jd, birth_dt = _parse_birth_input(date_str, time_str, tz_offset,
                                        latitude, longitude)
 
@@ -124,6 +138,9 @@ def compute_single_divisional(date_str: str, time_str: str,
                                tz_offset: float,
                                chart_type: str) -> dict:
     """Compute a single divisional chart."""
+    # Ensure Swiss Ephemeris is initialized for this worker
+    _ensure_swisseph_initialized()
+
     jd, _ = _parse_birth_input(date_str, time_str, tz_offset,
                                 latitude, longitude)
 
@@ -139,6 +156,9 @@ def compute_dasha_only(date_str: str, time_str: str,
                        tz_offset: float,
                        levels: int = 3) -> list[dict]:
     """Compute only the Vimshottari Dasha periods."""
+    # Ensure Swiss Ephemeris is initialized for this worker
+    _ensure_swisseph_initialized()
+
     jd, birth_dt = _parse_birth_input(date_str, time_str, tz_offset,
                                        latitude, longitude)
 
